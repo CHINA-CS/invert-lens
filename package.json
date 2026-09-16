@@ -1,0 +1,37 @@
+{
+  "name": "invert-lens",
+  "version": "1.0.0",
+  "description": "桌面反色滤镜片：悬浮可缩放镜片，白底变黑、黑字变白、彩图变灰",
+  "main": "main.js",
+  "author": "MiMo",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.mimo.invertlens",
+    "productName": "反色滤镜片",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/icon.png"
+    }
+  }
+}

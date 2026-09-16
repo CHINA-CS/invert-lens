@@ -1,0 +1,255 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a0a;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+#frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0a0a0a;
+}
+
+#viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #000;
+  pointer-events: none;
+}
+
+#frame[data-effect="on"][data-mode="invert"] #viewport {
+  filter: invert(1);
+}
+
+#frame[data-effect="on"][data-mode="gray"] #viewport {
+  filter: grayscale(1);
+}
+
+#frame[data-effect="on"][data-mode="combo"] #viewport {
+  filter: invert(1) grayscale(1);
+}
+
+#frame[data-effect="off"] #viewport,
+#frame[data-mode="off"] #viewport {
+  filter: none;
+}
+
+#screen-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  display: none;
+}
+
+#freeze-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  display: block;
+}
+
+#frame[data-capture="live"] #screen-video {
+  display: block;
+}
+
+#frame[data-capture="live"] #freeze-canvas {
+  display: none;
+}
+
+#empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e8e8e8;
+  font-size: 13px;
+  background: rgba(16, 16, 18, 0.92);
+  z-index: 4;
+  border-radius: 10px;
+  text-align: center;
+  padding: 16px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+#empty-hint.hidden {
+  display: none;
+}
+
+/* 顶部拖拽条：常显细条，方便找到并抓住镜片 */
+#drag-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: 7;
+  cursor: grab;
+  -webkit-app-region: drag;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.45),
+    rgba(0, 0, 0, 0)
+  );
+  border-radius: 10px 10px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#drag-bar:active {
+  cursor: grabbing;
+}
+
+#grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+#border {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  border: 1.5px solid rgba(120, 180, 255, 0.45);
+  z-index: 5;
+}
+
+#frame[data-interactive="true"] #border {
+  border-color: rgba(120, 200, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(80, 160, 255, 0.25);
+}
+
+#chrome {
+  position: absolute;
+  top: 30px;
+  left: 8px;
+  right: 8px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#frame[data-interactive="true"] #chrome {
+  opacity: 1;
+}
+
+#toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+#toolbar button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.7);
+  color: #f3f3f3;
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#toolbar button:hover {
+  background: rgba(40, 40, 45, 0.9);
+  border-color: rgba(140, 190, 255, 0.5);
+}
+
+#toolbar button.active {
+  background: rgba(70, 130, 220, 0.85);
+  border-color: rgba(160, 200, 255, 0.7);
+}
+
+#hint {
+  align-self: flex-start;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  z-index: 8;
+  background: transparent;
+  -webkit-app-region: no-drag;
+}
+
+.handle.n,
+.handle.s {
+  left: 14px;
+  right: 14px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.handle.n { top: 0; }
+.handle.s { bottom: 0; }
+
+.handle.e,
+.handle.w {
+  top: 30px;
+  bottom: 14px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.handle.e { right: 0; }
+.handle.w { left: 0; }
+
+.handle.ne,
+.handle.nw,
+.handle.se,
+.handle.sw {
+  width: 14px;
+  height: 14px;
+}
+
+.handle.ne { top: 0; right: 0; cursor: nesw-resize; }
+.handle.nw { top: 0; left: 0; cursor: nwse-resize; }
+.handle.se { bottom: 0; right: 0; cursor: nwse-resize; }
+.handle.sw { bottom: 0; left: 0; cursor: nesw-resize; }
+
+/* 非交互时隐藏手柄，避免误触视觉噪音；穿透由主进程处理 */
+#frame[data-interactive="false"] .handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#frame[data-interactive="true"] .handle {
+  opacity: 1;
+  pointer-events: auto;
+}

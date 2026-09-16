@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>反色滤镜片</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="frame" data-mode="combo" data-effect="on" data-capture="live" data-interactive="false">
+    <div id="viewport">
+      <video id="screen-video" autoplay muted playsinline></video>
+      <canvas id="freeze-canvas"></canvas>
+    </div>
+
+    <div id="empty-hint">准备中…</div>
+
+    <!-- 顶部拖拽条：仅此区域可拖动镜片 -->
+    <div id="drag-bar" title="按住拖动镜片">
+      <div id="grip"></div>
+    </div>
+
+    <div id="chrome">
+      <div id="toolbar">
+        <button type="button" id="btn-effect" title="开关滤镜">滤镜 开</button>
+        <button type="button" id="btn-mode" title="切换模式">反色+灰度</button>
+        <button type="button" id="btn-capture" title="冻结 / 实时">实时</button>
+        <button type="button" id="btn-refresh" title="重新截取当前画面">刷新</button>
+      </div>
+      <div id="hint">顶栏拖动 · 边缘缩放 · 镜片区域点击穿透</div>
+    </div>
+
+    <div class="handle n" data-dir="n"></div>
+    <div class="handle s" data-dir="s"></div>
+    <div class="handle e" data-dir="e"></div>
+    <div class="handle w" data-dir="w"></div>
+    <div class="handle ne" data-dir="ne"></div>
+    <div class="handle nw" data-dir="nw"></div>
+    <div class="handle se" data-dir="se"></div>
+    <div class="handle sw" data-dir="sw"></div>
+
+    <div id="border"></div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
