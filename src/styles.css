@@ -31,6 +31,7 @@ body {
   border-radius: 10px;
   background: #000;
   pointer-events: none;
+  /* 亮度由 JS 写入 filter，含 invert/grayscale/brightness */
 }
 
 #frame[data-effect="on"][data-mode="invert"] #viewport {
@@ -189,6 +190,37 @@ body {
 #toolbar button.active {
   background: rgba(70, 130, 220, 0.85);
   border-color: rgba(160, 200, 255, 0.7);
+}
+
+#bright-ctrl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f3f3f3;
+  font-size: 11px;
+  line-height: 1;
+  -webkit-app-region: no-drag;
+}
+
+#bright-ctrl .bright-label {
+  opacity: 0.85;
+}
+
+#brightness {
+  width: 88px;
+  accent-color: #5aa2ff;
+  cursor: pointer;
+}
+
+#brightness-label {
+  min-width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
 }
 
 #hint {

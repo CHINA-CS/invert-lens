@@ -288,9 +288,14 @@ function createWindow() {
     setTimeout(applyContentProtection, 1500);
 
     const mode = state.mode || 'combo';
+    const bright =
+      typeof state.brightness === 'number'
+        ? Math.min(100, Math.max(10, Math.round(state.brightness)))
+        : 100;
     win.webContents.send('init', {
       mode: MODES.includes(mode) ? mode : 'combo',
       captureMode: state.captureMode === 'freeze' ? 'freeze' : 'live',
+      brightness: bright,
       bounds: win.getBounds(),
     });
     sendBoundsThrottled(true);
@@ -511,6 +516,13 @@ ipcMain.on('report-mode', (_e, mode) => {
 ipcMain.on('report-capture-mode', (_e, mode) => {
   if (mode === 'freeze' || mode === 'live') {
     saveState({ captureMode: mode });
+  }
+});
+
+ipcMain.on('report-brightness', (_e, pct) => {
+  const n = Math.round(Number(pct));
+  if (Number.isFinite(n)) {
+    saveState({ brightness: Math.min(100, Math.max(10, n)) });
   }
 });
 

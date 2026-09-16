@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('lensAPI', {
   onToggleEffect: (cb) => ipcRenderer.on('toggle-effect', () => cb()),
   reportMode: (mode) => ipcRenderer.send('report-mode', mode),
   reportCaptureMode: (mode) => ipcRenderer.send('report-capture-mode', mode),
+  reportBrightness: (pct) => ipcRenderer.send('report-brightness', pct),
 });

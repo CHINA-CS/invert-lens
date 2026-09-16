@@ -8,6 +8,9 @@
   const btnCapture = document.getElementById('btn-capture');
   const btnRefresh = document.getElementById('btn-refresh');
   const dragBar = document.getElementById('drag-bar');
+  const viewport = document.getElementById('viewport');
+  const brightnessInput = document.getElementById('brightness');
+  const brightnessLabel = document.getElementById('brightness-label');
 
   const MODES = ['off', 'invert', 'gray', 'combo'];
   const MODE_LABELS = {
@@ -22,6 +25,7 @@
 
   let mode = 'combo';
   let effectOn = true;
+  let brightness = 100; // 100%=原亮度，降低则变暗
   let captureMode = 'live';
   let bounds = { x: 0, y: 0, width: 560, height: 360 };
   let display = null;
@@ -38,12 +42,24 @@
   let lastInteractive = null;
   const ctx = canvas.getContext('2d', { willReadFrequently: false });
 
+  // ---------- 滤镜（反色 / 灰度 / 亮度） ----------
+  function applyFilters() {
+    const parts = [];
+    if (effectOn && mode !== 'off') {
+      if (mode === 'invert' || mode === 'combo') parts.push('invert(1)');
+      if (mode === 'gray' || mode === 'combo') parts.push('grayscale(1)');
+      if (brightness !== 100) parts.push(`brightness(${(brightness / 100).toFixed(2)})`);
+    }
+    viewport.style.filter = parts.length ? parts.join(' ') : 'none';
+  }
+
   // ---------- UI ----------
   function applyUi() {
     frame.dataset.mode = mode;
     frame.dataset.effect = effectOn ? 'on' : 'off';
     frame.dataset.capture = captureMode;
     frame.dataset.interactive = interactive ? 'true' : 'false';
+    applyFilters();
 
     btnEffect.textContent = effectOn ? '滤镜 开' : '滤镜 关';
     btnEffect.classList.toggle('off-state', !effectOn);
@@ -54,6 +70,17 @@
     btnCapture.textContent = captureMode === 'freeze' ? '冻结' : '实时';
     btnCapture.classList.toggle('active', captureMode === 'live');
     btnRefresh.disabled = !streamReady && captureMode === 'freeze';
+
+    if (brightnessInput) brightnessInput.value = String(brightness);
+    if (brightnessLabel) brightnessLabel.textContent = `${brightness}%`;
+  }
+
+  function setBrightness(pct) {
+    const n = Math.round(Number(pct));
+    if (!Number.isFinite(n)) return;
+    brightness = Math.min(100, Math.max(10, n));
+    window.lensAPI?.reportBrightness?.(brightness);
+    applyUi();
   }
 
   function setMode(next) {
@@ -336,6 +363,12 @@
     refreshFreeze();
   });
 
+  brightnessInput?.addEventListener('input', (e) => {
+    e.stopPropagation();
+    setBrightness(e.target.value);
+  });
+  brightnessInput?.addEventListener('pointerdown', (e) => e.stopPropagation());
+
   // ---------- 缩放 ----------
   function onHandlePointerDown(e) {
     if (e.button !== 0) return;
@@ -405,6 +438,9 @@
       if (data.mode) mode = data.mode;
       if (data.bounds) bounds = data.bounds;
       effectOn = true;
+      if (data.brightness != null) {
+        brightness = Math.min(100, Math.max(10, Math.round(data.brightness)));
+      }
       captureMode = data.captureMode === 'freeze' ? 'freeze' : 'live';
       applyInteractive(false);
       applyUi();
