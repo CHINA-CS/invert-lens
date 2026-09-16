@@ -61,10 +61,11 @@
     frame.dataset.interactive = interactive ? 'true' : 'false';
     applyFilters();
 
-    btnEffect.textContent = effectOn ? '滤镜 开' : '滤镜 关';
+    btnEffect.textContent = effectOn ? '滤镜' : '滤镜关';
     btnEffect.classList.toggle('off-state', !effectOn);
 
-    btnMode.textContent = MODE_LABELS[mode] || mode;
+    btnMode.textContent = mode === 'combo' ? '反灰' : MODE_LABELS[mode] || mode;
+    btnMode.title = MODE_LABELS[mode] || mode;
     btnMode.classList.toggle('active', mode !== 'off' && effectOn);
 
     btnCapture.textContent = captureMode === 'freeze' ? '冻结' : '实时';

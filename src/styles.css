@@ -145,13 +145,13 @@ body {
 
 #chrome {
   position: absolute;
-  top: 30px;
-  left: 8px;
-  right: 8px;
+  top: 28px;
+  left: 6px;
+  right: 6px;
   z-index: 6;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -163,10 +163,12 @@ body {
 
 #toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 5px;
   pointer-events: auto;
   -webkit-app-region: no-drag;
+  max-width: 100%;
 }
 
 #toolbar button {
@@ -176,10 +178,11 @@ body {
   color: #f3f3f3;
   font-size: 11px;
   line-height: 1;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 999px;
   cursor: pointer;
   font-family: inherit;
+  flex-shrink: 0;
 }
 
 #toolbar button:hover {
@@ -195,8 +198,8 @@ body {
 #bright-ctrl {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 5px 8px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -204,23 +207,30 @@ body {
   font-size: 11px;
   line-height: 1;
   -webkit-app-region: no-drag;
+  flex-shrink: 0;
+  height: 26px;
+  box-sizing: border-box;
 }
 
 #bright-ctrl .bright-label {
   opacity: 0.85;
+  flex-shrink: 0;
 }
 
 #brightness {
-  width: 88px;
+  width: 72px;
+  height: 18px;
   accent-color: #5aa2ff;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 #brightness-label {
-  min-width: 36px;
+  min-width: 32px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   opacity: 0.9;
+  flex-shrink: 0;
 }
 
 #hint {

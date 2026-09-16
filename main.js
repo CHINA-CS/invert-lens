@@ -147,7 +147,7 @@ function cycleMode() {
 
 let interactive = false;
 
-const TOP_ZONE = 56;
+const TOP_ZONE = 110; // 覆盖拖拽条 + 整行工具栏（含亮度滑杆）
 const EDGE_ZONE = 10;
 
 function setInteractive(on, notifyRenderer) {
