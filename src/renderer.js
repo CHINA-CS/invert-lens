@@ -11,6 +11,8 @@
   const viewport = document.getElementById('viewport');
   const brightnessInput = document.getElementById('brightness');
   const brightnessLabel = document.getElementById('brightness-label');
+  const cursorShield = document.getElementById('cursor-shield');
+  const shieldVideo = document.getElementById('shield-video');
 
   const MODES = ['off', 'invert', 'gray', 'combo'];
   const MODE_LABELS = {
@@ -40,6 +42,8 @@
   let switchTimer = 0;
   let interactive = false;
   let lastInteractive = null;
+  let cursorLocal = null;
+  const SHIELD = 48;
   const ctx = canvas.getContext('2d', { willReadFrequently: false });
 
   // ---------- 滤镜（反色 / 灰度 / 亮度） ----------
@@ -161,6 +165,42 @@
     video.style.height = `${L.cssH}px`;
     video.style.left = `${L.left}px`;
     video.style.top = `${L.top}px`;
+    // 保护层视频与主视频同一几何
+    if (shieldVideo) {
+      shieldVideo.style.width = `${L.cssW}px`;
+      shieldVideo.style.height = `${L.cssH}px`;
+      shieldVideo.dataset.left = String(L.left);
+      shieldVideo.dataset.top = String(L.top);
+      positionShield();
+    }
+  }
+
+  /**
+   * 鼠标原色保护区：在滤镜层之上开一个未反色的圆，
+   * 避免光标被 invert/grayscale 改成反色。
+   */
+  function positionShield() {
+    if (!cursorShield || !shieldVideo) return;
+    if (!cursorLocal || captureMode !== 'live' || !effectOn || mode === 'off') {
+      cursorShield.hidden = true;
+      return;
+    }
+    if (!shieldVideo.videoWidth) {
+      cursorShield.hidden = true;
+      return;
+    }
+
+    const half = SHIELD / 2;
+    const left = cursorLocal.x - half;
+    const top = cursorLocal.y - half;
+    cursorShield.hidden = false;
+    cursorShield.style.left = `${left}px`;
+    cursorShield.style.top = `${top}px`;
+
+    const vLeft = parseFloat(shieldVideo.dataset.left || '0');
+    const vTop = parseFloat(shieldVideo.dataset.top || '0');
+    shieldVideo.style.left = `${vLeft - left}px`;
+    shieldVideo.style.top = `${vTop - top}px`;
   }
 
   function alignCanvas() {
@@ -245,6 +285,11 @@
     stream = newStream;
     video.srcObject = stream;
     video.muted = true;
+    if (shieldVideo) {
+      shieldVideo.srcObject = stream;
+      shieldVideo.muted = true;
+      try { await shieldVideo.play(); } catch (_) {}
+    }
     try { await video.play(); } catch (_) {}
 
     await new Promise((resolve) => {
@@ -429,7 +474,10 @@
   document.getElementById('viewport').style.webkitAppRegion = 'no-drag';
 
   function tick() {
-    if (captureMode === 'live' && video.videoWidth) alignVideo();
+    if (captureMode === 'live' && video.videoWidth) {
+      alignVideo();
+      positionShield();
+    }
     requestAnimationFrame(tick);
   }
 
@@ -449,6 +497,28 @@
     });
 
     window.lensAPI.onInteractive?.((on) => applyInteractive(on));
+
+    window.lensAPI.onCursorLocal?.((pos) => {
+      cursorLocal = pos;
+      positionShield();
+    });
+
+    // 唤出：只重新对齐/冻结，不重建捕获流，避免闪烁
+    window.lensAPI.onWake?.(() => {
+      applyInteractive(false);
+      lastVideoAlignKey = '';
+      lastCanvasAlignKey = '';
+      alignVideo();
+      if (captureMode === 'freeze' && streamReady) freezeOnce();
+      else if (streamReady) hideHint();
+      else startCapture();
+      positionShield();
+    });
+
+    window.lensAPI.onSleep?.(() => {
+      cursorLocal = null;
+      if (cursorShield) cursorShield.hidden = true;
+    });
 
     window.lensAPI.onBounds((data) => {
       bounds = data.bounds;

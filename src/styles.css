@@ -75,6 +75,30 @@ body {
   display: none;
 }
 
+/* 光标保护区：滤镜外的圆形原色窗口 */
+#cursor-shield {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+#cursor-shield[hidden] {
+  display: none !important;
+}
+
+#shield-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  max-width: none;
+}
+
 #empty-hint {
   position: absolute;
   inset: 0;

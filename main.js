@@ -113,7 +113,7 @@ function rebuildTrayMenu() {
   ]);
   tray.setContextMenu(menu);
   tray.setToolTip(
-    `反色滤镜片 · ${MODE_LABELS[mode] || mode}\nCtrl+Shift+Z 唤出/隐藏`
+    `反色滤镜片 · ${MODE_LABELS[mode] || mode}\nCtrl+Alt+C 唤出/隐藏`
   );
 }
 
@@ -172,10 +172,11 @@ function setInteractive(on, notifyRenderer) {
 }
 
 /**
- * 轮询光标：顶栏/边缘 → 接管鼠标；镜片中部/窗外 → 穿透。
- * 不依赖 setIgnoreMouseEvents 的 forward，Windows 上更稳。
+ * 轮询光标：顶栏/边缘 → 接管；中部穿透。
+ * 同时把窗口内坐标发给渲染层，驱动「鼠标原色保护区」。
  */
 function startCursorWatch() {
+  let lastSent = 0;
   setInterval(() => {
     if (!win || win.isDestroyed() || hidden || !win.isVisible()) return;
     if (win.isMinimized()) return;
@@ -193,6 +194,11 @@ function startCursorWatch() {
 
     if (!over) {
       setInteractive(false);
+      const now0 = Date.now();
+      if (now0 - lastSent > 80) {
+        lastSent = now0;
+        win.webContents.send('cursor-local', null);
+      }
       return;
     }
 
@@ -205,22 +211,37 @@ function startCursorWatch() {
       rx >= b.width - EDGE_ZONE;
 
     setInteractive(hot);
-  }, 40);
+
+    const now = Date.now();
+    if (now - lastSent >= 30) {
+      lastSent = now;
+      // bounds/cursor 均为 DIP，与页面 CSS 像素一致
+      win.webContents.send('cursor-local', { x: rx, y: ry });
+    }
+  }, 16);
 }
 
 function toggleVisible() {
   if (!win || win.isDestroyed()) return;
   if (hidden || !win.isVisible()) {
+    // 先钉截屏排除，再显示，减少唤出瞬间的反色反馈闪烁
+    applyContentProtection();
+    try {
+      win.setAlwaysOnTop(true, 'screen-saver');
+    } catch (_) {}
     win.show();
+    applyContentProtection();
     try {
       win.focus();
       win.moveTop();
     } catch (_) {}
     hidden = false;
+    win.webContents.send('wake');
   } else {
     win.hide();
     hidden = true;
     setInteractive(false);
+    win.webContents.send('sleep');
   }
   rebuildTrayMenu();
 }
@@ -333,6 +354,11 @@ function createWindow() {
     persistBounds();
     sendBoundsThrottled(true);
   });
+  win.on('show', () => {
+    applyContentProtection();
+    sendBoundsThrottled(true);
+  });
+
   win.on('closed', () => {
     win = null;
   });
@@ -352,7 +378,8 @@ function toggleEffectShortcut() {
 
 function registerShortcuts() {
   const list = [
-    // 主唤出/隐藏键：后台挂着随时 Ctrl+Shift+Z
+    // 主唤出/隐藏键
+    ['CommandOrControl+Alt+C', toggleVisible],
     ['CommandOrControl+Shift+Z', toggleVisible],
     ['CommandOrControl+Shift+I', cycleMode],
     ['CommandOrControl+Shift+E', toggleEffectShortcut],
