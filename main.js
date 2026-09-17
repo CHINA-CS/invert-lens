@@ -10,7 +10,6 @@ const {
   desktopCapturer,
   session,
 } = require('electron');
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -149,76 +148,9 @@ function cycleMode() {
 }
 
 let interactive = false;
-let cursorHidden = false;
-let cursorHelper = null;
 
 const TOP_ZONE = 110; // 覆盖拖拽条 + 整行工具栏（含亮度滑杆）
 const EDGE_ZONE = 10;
-
-/**
- * 常驻 PowerShell 调用 user32.ShowCursor。
- * 镜片上隐藏系统光标，避免截屏里的指针被反色；离开后恢复。
- */
-function startCursorHelper() {
-  try {
-    cursorHelper = spawn(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        `
-Add-Type -Name Cur -Namespace Win32 -MemberDefinition '[DllImport("user32.dll")] public static extern int ShowCursor(bool bShow);'
-function Set-Cursor([bool]$show) { [Win32.Cur]::ShowCursor($show) | Out-Null }
-# 保证退出时恢复
-try {
-  while ($true) {
-    $line = [Console]::In.ReadLine()
-    if ($null -eq $line) { break }
-    if ($line -eq 'hide') { Set-Cursor $false }
-    elseif ($line -eq 'show') { Set-Cursor $true }
-    elseif ($line -eq 'quit') { break }
-  }
-} finally {
-  Set-Cursor $true
-}
-`.trim(),
-      ],
-      { stdio: ['pipe', 'ignore', 'ignore'] }
-    );
-    cursorHelper.on('error', (err) => {
-      console.error('cursor helper error', err);
-      cursorHelper = null;
-    });
-    cursorHelper.on('exit', () => {
-      cursorHelper = null;
-    });
-  } catch (err) {
-    console.error('cursor helper spawn failed', err);
-    cursorHelper = null;
-  }
-}
-
-function setSystemCursorHidden(hide) {
-  const next = !!hide;
-  if (next === cursorHidden) return;
-  cursorHidden = next;
-  if (!cursorHelper || !cursorHelper.stdin || cursorHelper.stdin.destroyed) return;
-  try {
-    cursorHelper.stdin.write(next ? 'hide\n' : 'show\n');
-  } catch (_) {}
-}
-
-function stopCursorHelper() {
-  if (cursorHelper && cursorHelper.stdin && !cursorHelper.stdin.destroyed) {
-    try {
-      cursorHelper.stdin.write('show\n');
-      cursorHelper.stdin.write('quit\n');
-    } catch (_) {}
-  }
-  cursorHelper = null;
-  cursorHidden = false;
-}
 
 function setInteractive(on, notifyRenderer) {
   const next = !!on;
@@ -241,18 +173,13 @@ function setInteractive(on, notifyRenderer) {
 
 /**
  * 轮询光标：顶栏/边缘 → 接管；中部穿透。
- * 光标在镜片上时隐藏系统指针，避免被反色滤镜改色。
+ * 并把窗口内坐标发给渲染层，用于从截屏画面里抹掉指针像素。
  */
 function startCursorWatch() {
+  let lastSent = 0;
   setInterval(() => {
-    if (!win || win.isDestroyed() || hidden || !win.isVisible()) {
-      setSystemCursorHidden(false);
-      return;
-    }
-    if (win.isMinimized()) {
-      setSystemCursorHidden(false);
-      return;
-    }
+    if (!win || win.isDestroyed() || hidden || !win.isVisible()) return;
+    if (win.isMinimized()) return;
 
     let b;
     try {
@@ -267,7 +194,11 @@ function startCursorWatch() {
 
     if (!over) {
       setInteractive(false);
-      setSystemCursorHidden(false);
+      const t0 = Date.now();
+      if (t0 - lastSent > 80) {
+        lastSent = t0;
+        win.webContents.send('cursor-local', null);
+      }
       return;
     }
 
@@ -280,9 +211,13 @@ function startCursorWatch() {
       rx >= b.width - EDGE_ZONE;
 
     setInteractive(hot);
-    // 镜片上一律隐藏系统光标（不再画圆）
-    setSystemCursorHidden(true);
-  }, 40);
+
+    const t = Date.now();
+    if (t - lastSent >= 16) {
+      lastSent = t;
+      win.webContents.send('cursor-local', { x: rx, y: ry });
+    }
+  }, 16);
 }
 
 function toggleVisible() {
@@ -305,7 +240,6 @@ function toggleVisible() {
     win.hide();
     hidden = true;
     setInteractive(false);
-    setSystemCursorHidden(false);
     win.webContents.send('sleep');
   }
   rebuildTrayMenu();
@@ -638,7 +572,6 @@ app.whenReady().then(() => {
 
   setupDisplayMediaHandler();
   createWindow();
-  startCursorHelper();
   startCursorWatch();
   tray = new Tray(createTrayIcon());
   rebuildTrayMenu();
@@ -658,7 +591,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
-  stopCursorHelper();
   globalShortcut.unregisterAll();
 });
 

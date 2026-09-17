@@ -31,48 +31,28 @@ body {
   border-radius: 10px;
   background: #000;
   pointer-events: none;
-  /* 亮度由 JS 写入 filter，含 invert/grayscale/brightness */
 }
 
-#frame[data-effect="on"][data-mode="invert"] #viewport {
-  filter: invert(1);
-}
-
-#frame[data-effect="on"][data-mode="gray"] #viewport {
-  filter: grayscale(1);
-}
-
-#frame[data-effect="on"][data-mode="combo"] #viewport {
-  filter: invert(1) grayscale(1);
-}
-
-#frame[data-effect="off"] #viewport,
-#frame[data-mode="off"] #viewport {
-  filter: none;
-}
-
+/* 采集源不直接显示 */
 #screen-video {
   position: absolute;
-  top: 0;
-  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
   pointer-events: none;
-  display: none;
+  left: -9999px;
+  top: -9999px;
 }
 
-#freeze-canvas {
+/* 显示层：滤镜由 JS 写在 canvas 上 */
+#view-canvas {
   position: absolute;
-  top: 0;
   left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   display: block;
-}
-
-#frame[data-capture="live"] #screen-video {
-  display: block;
-}
-
-#frame[data-capture="live"] #freeze-canvas {
-  display: none;
 }
 
 #empty-hint {

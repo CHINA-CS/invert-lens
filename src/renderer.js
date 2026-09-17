@@ -1,7 +1,7 @@
 (() => {
   const frame = document.getElementById('frame');
   const video = document.getElementById('screen-video');
-  const canvas = document.getElementById('freeze-canvas');
+  const view = document.getElementById('view-canvas');
   const emptyHint = document.getElementById('empty-hint');
   const btnEffect = document.getElementById('btn-effect');
   const btnMode = document.getElementById('btn-mode');
@@ -11,6 +11,7 @@
   const viewport = document.getElementById('viewport');
   const brightnessInput = document.getElementById('brightness');
   const brightnessLabel = document.getElementById('brightness-label');
+  const ctx = view.getContext('2d', { willReadFrequently: false });
 
   const MODES = ['off', 'invert', 'gray', 'combo'];
   const MODE_LABELS = {
@@ -22,10 +23,12 @@
 
   const MIN_W = 180;
   const MIN_H = 140;
+  // 覆盖 Windows 箭头指针热区
+  const CUR_PAD = 28;
 
   let mode = 'combo';
   let effectOn = true;
-  let brightness = 100; // 100%=原亮度，降低则变暗
+  let brightness = 100;
   let captureMode = 'live';
   let bounds = { x: 0, y: 0, width: 560, height: 360 };
   let display = null;
@@ -34,15 +37,15 @@
   let streamReady = false;
   let failCount = 0;
   let drag = null;
-  let lastVideoAlignKey = '';
-  let lastCanvasAlignKey = '';
   let lastStreamDisplayId = null;
   let switchTimer = 0;
   let interactive = false;
   let lastInteractive = null;
-  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+  let cursorLocal = null;
+  let lastDrawKey = '';
+  let frozenFrame = null; // 冻结用的离屏帧
 
-  // ---------- 滤镜（反色 / 灰度 / 亮度） ----------
+  // ---------- 滤镜 ----------
   function applyFilters() {
     const parts = [];
     if (effectOn && mode !== 'off') {
@@ -50,10 +53,9 @@
       if (mode === 'gray' || mode === 'combo') parts.push('grayscale(1)');
       if (brightness !== 100) parts.push(`brightness(${(brightness / 100).toFixed(2)})`);
     }
-    viewport.style.filter = parts.length ? parts.join(' ') : 'none';
+    view.style.filter = parts.length ? parts.join(' ') : 'none';
   }
 
-  // ---------- UI ----------
   function applyUi() {
     frame.dataset.mode = mode;
     frame.dataset.effect = effectOn ? 'on' : 'off';
@@ -76,20 +78,11 @@
     if (brightnessLabel) brightnessLabel.textContent = `${brightness}%`;
   }
 
-  function setBrightness(pct) {
-    const n = Math.round(Number(pct));
-    if (!Number.isFinite(n)) return;
-    brightness = Math.min(100, Math.max(10, n));
-    window.lensAPI?.reportBrightness?.(brightness);
-    applyUi();
-  }
-
   function setMode(next) {
     if (!MODES.includes(next)) return;
     mode = next;
     window.lensAPI?.reportMode?.(mode);
     applyUi();
-    if (captureMode === 'freeze' && streamReady) freezeOnce();
   }
 
   function cycleMode() {
@@ -100,7 +93,14 @@
   function toggleEffect() {
     effectOn = !effectOn;
     applyUi();
-    if (effectOn && captureMode === 'freeze' && streamReady) freezeOnce();
+  }
+
+  function setBrightness(pct) {
+    const n = Math.round(Number(pct));
+    if (!Number.isFinite(n)) return;
+    brightness = Math.min(100, Math.max(10, n));
+    window.lensAPI?.reportBrightness?.(brightness);
+    applyUi();
   }
 
   function showHint(text, sticky) {
@@ -118,7 +118,6 @@
     emptyHint.classList.add('hidden');
   }
 
-  // ---------- 交互状态由主进程光标轮询驱动 ----------
   function applyInteractive(on) {
     const next = !!on;
     if (next === lastInteractive) return;
@@ -127,7 +126,7 @@
     frame.dataset.interactive = interactive ? 'true' : 'false';
   }
 
-  // ---------- 几何对齐 ----------
+  // ---------- 几何：把全屏 video 裁到镜片矩形 ----------
   function displayBounds() {
     if (display && display.bounds) return display.bounds;
     return { x: 0, y: 0, width: window.screen.width, height: window.screen.height };
@@ -137,59 +136,105 @@
     return (display && display.scaleFactor) || 1;
   }
 
-  function computeSurfaceLayout(mediaW, mediaH) {
+  /** 镜片矩形在「捕获像素坐标系」里的位置 */
+  function sourceRect(mediaW, mediaH) {
     const db = displayBounds();
     const sf = scaleFactor();
     const scaleX = mediaW / Math.max(1, db.width * sf);
     const scaleY = mediaH / Math.max(1, db.height * sf);
     const scale = (scaleX + scaleY) / 2 || 1;
+    const relX = bounds.x - db.x;
+    const relY = bounds.y - db.y;
     return {
-      cssW: mediaW / scale,
-      cssH: mediaH / scale,
-      left: -(bounds.x - db.x),
-      top: -(bounds.y - db.y),
+      sx: Math.max(0, Math.round(relX * scale)),
+      sy: Math.max(0, Math.round(relY * scale)),
+      sw: Math.max(1, Math.round(bounds.width * scale)),
+      sh: Math.max(1, Math.round(bounds.height * scale)),
+      scale,
     };
   }
 
-  function alignVideo() {
-    if (!video.videoWidth || !video.videoHeight) return;
-    const L = computeSurfaceLayout(video.videoWidth, video.videoHeight);
-    const key = `${L.cssW}|${L.cssH}|${L.left}|${L.top}`;
-    if (key === lastVideoAlignKey) return;
-    lastVideoAlignKey = key;
-    video.style.width = `${L.cssW}px`;
-    video.style.height = `${L.cssH}px`;
-    video.style.left = `${L.left}px`;
-    video.style.top = `${L.top}px`;
+  function ensureViewSize(cssW, cssH) {
+    const w = Math.max(1, Math.round(cssW));
+    const h = Math.max(1, Math.round(cssH));
+    if (view.width !== w || view.height !== h) {
+      view.width = w;
+      view.height = h;
+      lastDrawKey = '';
+    }
   }
 
-  function alignCanvas() {
-    if (!canvas.width || !canvas.height) return;
-    const L = computeSurfaceLayout(canvas.width, canvas.height);
-    const key = `${L.cssW}|${L.cssH}|${L.left}|${L.top}`;
-    if (key === lastCanvasAlignKey) return;
-    lastCanvasAlignKey = key;
-    canvas.style.width = `${L.cssW}px`;
-    canvas.style.height = `${L.cssH}px`;
-    canvas.style.left = `${L.left}px`;
-    canvas.style.top = `${L.top}px`;
+  /**
+   * 在 canvas 坐标系里抹掉指针：
+   * 把指针上方一块内容盖到指针位置（无未滤镜圆、无第二光标）。
+   */
+  function stampOutCursor(c, cx, cy, cw, ch) {
+    if (cursorLocal == null) return;
+    const pad = CUR_PAD;
+    const x = Math.round(cursorLocal.x - pad * 0.35);
+    const y = Math.round(cursorLocal.y - pad * 0.25);
+    const w = pad;
+    const h = pad * 1.35;
+    if (x + w < 0 || y + h < 0 || x > cw || y > ch) return;
+
+    // 从上方拷贝同尺寸区域盖住指针；若上方不够则用下方
+    const srcY = y - h - 2;
+    if (srcY >= 0) {
+      c.drawImage(c, x, srcY, w, h, x, y, w, h);
+    } else {
+      c.drawImage(c, x, y + h + 2, w, h, x, y, w, h);
+    }
   }
 
+  /** 实时：从 video 裁剪 → 抹指针 */
+  function drawLive() {
+    if (!streamReady || !video.videoWidth) return;
+    const cssW = Math.max(1, Math.round(bounds.width));
+    const cssH = Math.max(1, Math.round(bounds.height));
+    ensureViewSize(cssW, cssH);
+
+    const R = sourceRect(video.videoWidth, video.videoHeight);
+    const key = `${R.sx}|${R.sy}|${R.sw}|${R.sh}|${cssW}|${cssH}`;
+    // 即使用同一 key，指针会动，必须每帧重画
+    lastDrawKey = key;
+
+    try {
+      ctx.drawImage(
+        video,
+        R.sx, R.sy, R.sw, R.sh,
+        0, 0, cssW, cssH
+      );
+      stampOutCursor(ctx, cursorLocal && cursorLocal.x, cursorLocal && cursorLocal.y, cssW, cssH);
+    } catch (_) {}
+  }
+
+  /** 冻结：抓一帧到离屏，再显示 */
   function freezeOnce() {
-    if (!video.videoWidth || !video.videoHeight) {
+    if (!video.videoWidth) {
       showHint('还没有可截取的画面', true);
       return;
     }
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
-      lastCanvasAlignKey = '';
-    }
-    ctx.drawImage(video, 0, 0, w, h);
-    alignCanvas();
+    const cssW = Math.max(1, Math.round(bounds.width));
+    const cssH = Math.max(1, Math.round(bounds.height));
+    ensureViewSize(cssW, cssH);
+    const R = sourceRect(video.videoWidth, video.videoHeight);
+    try {
+      ctx.drawImage(video, R.sx, R.sy, R.sw, R.sh, 0, 0, cssW, cssH);
+      stampOutCursor(ctx, cursorLocal && cursorLocal.x, cursorLocal && cursorLocal.y, cssW, cssH);
+      frozenFrame = document.createElement('canvas');
+      frozenFrame.width = view.width;
+      frozenFrame.height = view.height;
+      frozenFrame.getContext('2d').drawImage(view, 0, 0);
+    } catch (_) {}
     hideHint();
+  }
+
+  function drawFreeze() {
+    if (!frozenFrame) return;
+    ensureViewSize(bounds.width, bounds.height);
+    try {
+      ctx.drawImage(frozenFrame, 0, 0, view.width, view.height);
+    } catch (_) {}
   }
 
   // ---------- 捕获 ----------
@@ -203,7 +248,6 @@
     video.srcObject = null;
     streamReady = false;
     lastStreamDisplayId = null;
-    lastVideoAlignKey = '';
   }
 
   async function startCapture() {
@@ -257,8 +301,7 @@
     starting = false;
     failCount = 0;
     lastStreamDisplayId = display ? display.id : null;
-    lastVideoAlignKey = '';
-    alignVideo();
+    frozenFrame = null;
     if (captureMode === 'freeze') freezeOnce();
     else hideHint();
     applyUi();
@@ -328,10 +371,7 @@
     window.lensAPI?.reportCaptureMode?.(captureMode);
     applyUi();
     if (captureMode === 'freeze') freezeOnce();
-    else {
-      alignVideo();
-      hideHint();
-    }
+    else hideHint();
   }
 
   function toggleCaptureMode() {
@@ -363,7 +403,6 @@
     e.stopPropagation();
     refreshFreeze();
   });
-
   brightnessInput?.addEventListener('input', (e) => {
     e.stopPropagation();
     setBrightness(e.target.value);
@@ -419,17 +458,16 @@
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerUp);
 
-  // 顶栏用系统 drag；工具条 no-drag
   dragBar.style.webkitAppRegion = 'drag';
   document.getElementById('chrome').style.webkitAppRegion = 'no-drag';
   document.querySelectorAll('.handle').forEach((h) => {
     h.style.webkitAppRegion = 'no-drag';
   });
-  // 画面区域不参与系统 drag，避免抢走穿透
   document.getElementById('viewport').style.webkitAppRegion = 'no-drag';
 
   function tick() {
-    if (captureMode === 'live' && video.videoWidth) alignVideo();
+    if (captureMode === 'live') drawLive();
+    else if (frozenFrame) drawFreeze();
     requestAnimationFrame(tick);
   }
 
@@ -450,31 +488,31 @@
 
     window.lensAPI.onInteractive?.((on) => applyInteractive(on));
 
-    // 唤出：只重新对齐/冻结，不重建捕获流，避免闪烁
-    window.lensAPI.onWake?.(() => {
-      applyInteractive(false);
-      lastVideoAlignKey = '';
-      lastCanvasAlignKey = '';
-      alignVideo();
-      if (captureMode === 'freeze' && streamReady) freezeOnce();
-      else if (streamReady) hideHint();
-      else startCapture();
+    window.lensAPI.onCursorLocal?.((pos) => {
+      cursorLocal = pos;
     });
-
-    window.lensAPI.onSleep?.(() => {});
 
     window.lensAPI.onBounds((data) => {
       bounds = data.bounds;
       display = data.display;
       applyUi();
       ensureCaptureForDisplay();
-      if (captureMode === 'freeze') alignCanvas();
-      else alignVideo();
     });
 
     window.lensAPI.onMode((m) => setMode(m));
     window.lensAPI.onRefreshFreeze?.(() => refreshFreeze());
     window.lensAPI.onToggleEffect?.(() => toggleEffect());
+
+    window.lensAPI.onWake?.(() => {
+      applyInteractive(false);
+      if (captureMode === 'freeze' && streamReady) freezeOnce();
+      else if (streamReady) hideHint();
+      else startCapture();
+    });
+
+    window.lensAPI.onSleep?.(() => {
+      cursorLocal = null;
+    });
   }
 
   window.addEventListener('keydown', (e) => {

@@ -9,13 +9,14 @@
 <body>
   <div id="frame" data-mode="combo" data-effect="on" data-capture="live" data-interactive="false">
     <div id="viewport">
-      <video id="screen-video" autoplay muted playsinline></video>
-      <canvas id="freeze-canvas"></canvas>
+      <!-- 隐藏的采集源 -->
+      <video id="screen-video" autoplay muted playsinline playsInline></video>
+      <!-- 显示层：裁剪镜片区 + 抹掉指针 + CSS 滤镜 -->
+      <canvas id="view-canvas"></canvas>
     </div>
 
     <div id="empty-hint">准备中…</div>
 
-    <!-- 顶部拖拽条：仅此区域可拖动镜片 -->
     <div id="drag-bar" title="按住拖动镜片">
       <div id="grip"></div>
     </div>
@@ -32,7 +33,7 @@
           <span id="brightness-label">100%</span>
         </label>
       </div>
-      <div id="hint">Ctrl+Alt+C 唤出/隐藏 · 镜片上自动隐藏系统光标</div>
+      <div id="hint">Ctrl+Alt+C 唤出/隐藏 · 指针像素已从画面抹除</div>
     </div>
 
     <div class="handle n" data-dir="n"></div>
