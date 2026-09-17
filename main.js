@@ -112,7 +112,9 @@ function rebuildTrayMenu() {
     { label: '退出', click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
-  tray.setToolTip(`反色滤镜片 · ${MODE_LABELS[mode] || mode}`);
+  tray.setToolTip(
+    `反色滤镜片 · ${MODE_LABELS[mode] || mode}\nCtrl+Shift+Z 唤出/隐藏`
+  );
 }
 
 function sendBounds() {
@@ -208,12 +210,17 @@ function startCursorWatch() {
 
 function toggleVisible() {
   if (!win || win.isDestroyed()) return;
-  if (hidden) {
+  if (hidden || !win.isVisible()) {
     win.show();
+    try {
+      win.focus();
+      win.moveTop();
+    } catch (_) {}
     hidden = false;
   } else {
     win.hide();
     hidden = true;
+    setInteractive(false);
   }
   rebuildTrayMenu();
 }
@@ -345,6 +352,8 @@ function toggleEffectShortcut() {
 
 function registerShortcuts() {
   const list = [
+    // 主唤出/隐藏键：后台挂着随时 Ctrl+Shift+Z
+    ['CommandOrControl+Shift+Z', toggleVisible],
     ['CommandOrControl+Shift+I', cycleMode],
     ['CommandOrControl+Shift+E', toggleEffectShortcut],
     ['CommandOrControl+Shift+R', requestFreezeRefresh],
