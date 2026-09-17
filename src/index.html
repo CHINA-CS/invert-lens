@@ -13,11 +13,6 @@
       <canvas id="freeze-canvas"></canvas>
     </div>
 
-    <!-- 鼠标保护区：未反色的圆形区域，避免光标被 invert 改色 -->
-    <div id="cursor-shield" hidden>
-      <video id="shield-video" autoplay muted playsinline></video>
-    </div>
-
     <div id="empty-hint">准备中…</div>
 
     <!-- 顶部拖拽条：仅此区域可拖动镜片 -->
@@ -37,7 +32,7 @@
           <span id="brightness-label">100%</span>
         </label>
       </div>
-      <div id="hint">Ctrl+Alt+C 唤出/隐藏 · 顶栏拖动 · 边缘缩放 · 中部穿透</div>
+      <div id="hint">Ctrl+Alt+C 唤出/隐藏 · 镜片上自动隐藏系统光标</div>
     </div>
 
     <div class="handle n" data-dir="n"></div>
