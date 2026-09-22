@@ -149,8 +149,9 @@ function cycleMode() {
 
 let interactive = false;
 
-const TOP_ZONE = 110; // 覆盖拖拽条 + 整行工具栏（含亮度滑杆）
-const EDGE_ZONE = 10;
+// 拦截热区 = 拖拽条同高（约 28px），避免挡住镜片下方点击
+const TOP_ZONE = 28;
+const EDGE_ZONE = 6; // 仅薄边缩放
 
 function setInteractive(on, notifyRenderer) {
   const next = !!on;

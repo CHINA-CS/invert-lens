@@ -9,31 +9,25 @@
 <body>
   <div id="frame" data-mode="combo" data-effect="on" data-capture="live" data-interactive="false">
     <div id="viewport">
-      <!-- 隐藏的采集源 -->
-      <video id="screen-video" autoplay muted playsinline playsInline></video>
-      <!-- 显示层：裁剪镜片区 + 抹掉指针 + CSS 滤镜 -->
+      <video id="screen-video" autoplay muted playsinline></video>
       <canvas id="view-canvas"></canvas>
     </div>
 
     <div id="empty-hint">准备中…</div>
 
-    <div id="drag-bar" title="按住拖动镜片">
+    <!-- 唯一拦截条：与拖拽区同高同位置，工具栏嵌在其中 -->
+    <div id="drag-bar" title="按住拖动 · 仅此条挡住下方点击">
       <div id="grip"></div>
-    </div>
-
-    <div id="chrome">
       <div id="toolbar">
         <button type="button" id="btn-effect" title="开关滤镜">滤镜</button>
         <button type="button" id="btn-mode" title="切换模式">模式</button>
         <button type="button" id="btn-capture" title="冻结 / 实时">实时</button>
         <button type="button" id="btn-refresh" title="重新截取当前画面">刷新</button>
-        <label id="bright-ctrl" title="降低镜片内画面亮度（与按钮同一行）">
-          <span class="bright-label">亮度</span>
+        <label id="bright-ctrl" title="亮度">
           <input type="range" id="brightness" min="10" max="100" step="5" value="100" />
           <span id="brightness-label">100%</span>
         </label>
       </div>
-      <div id="hint">Ctrl+Alt+C 唤出/隐藏 · 指针像素已从画面抹除</div>
     </div>
 
     <div class="handle n" data-dir="n"></div>

@@ -76,7 +76,7 @@ body {
   display: none;
 }
 
-/* 顶部拖拽条：常显细条，方便找到并抓住镜片 */
+/* 唯一拦截条 = 拖拽条（28px），工具栏嵌在其中 */
 #drag-bar {
   position: absolute;
   top: 0;
@@ -86,15 +86,13 @@ body {
   z-index: 7;
   cursor: grab;
   -webkit-app-region: drag;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.45),
-    rgba(0, 0, 0, 0)
-  );
+  background: rgba(0, 0, 0, 0.55);
   border-radius: 10px 10px 0 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  box-sizing: border-box;
 }
 
 #drag-bar:active {
@@ -102,71 +100,43 @@ body {
 }
 
 #grip {
-  width: 36px;
+  width: 18px;
   height: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.35);
   pointer-events: none;
-}
-
-#border {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  border: 1.5px solid rgba(120, 180, 255, 0.45);
-  z-index: 5;
-}
-
-#frame[data-interactive="true"] #border {
-  border-color: rgba(120, 200, 255, 0.85);
-  box-shadow: 0 0 0 1px rgba(80, 160, 255, 0.25);
-}
-
-#chrome {
-  position: absolute;
-  top: 28px;
-  left: 6px;
-  right: 6px;
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-#frame[data-interactive="true"] #chrome {
-  opacity: 1;
+  flex-shrink: 0;
 }
 
 #toolbar {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   pointer-events: auto;
   -webkit-app-region: no-drag;
-  max-width: 100%;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 #toolbar button {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(20, 20, 24, 0.75);
   color: #f3f3f3;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
-  padding: 6px 8px;
-  border-radius: 999px;
+  padding: 4px 6px;
+  border-radius: 4px;
   cursor: pointer;
   font-family: inherit;
   flex-shrink: 0;
+  height: 20px;
 }
 
 #toolbar button:hover {
-  background: rgba(40, 40, 45, 0.9);
+  background: rgba(40, 40, 45, 0.95);
   border-color: rgba(140, 190, 255, 0.5);
 }
 
@@ -178,35 +148,25 @@ body {
 #bright-ctrl {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #f3f3f3;
-  font-size: 11px;
-  line-height: 1;
+  gap: 4px;
+  pointer-events: auto;
   -webkit-app-region: no-drag;
   flex-shrink: 0;
-  height: 26px;
-  box-sizing: border-box;
-}
-
-#bright-ctrl .bright-label {
-  opacity: 0.85;
-  flex-shrink: 0;
+  height: 20px;
+  color: #ddd;
+  font-size: 10px;
 }
 
 #brightness {
-  width: 72px;
-  height: 18px;
+  width: 56px;
+  height: 14px;
   accent-color: #5aa2ff;
   cursor: pointer;
   flex-shrink: 0;
 }
 
 #brightness-label {
-  min-width: 32px;
+  min-width: 28px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   opacity: 0.9;

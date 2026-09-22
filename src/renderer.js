@@ -459,7 +459,7 @@
   window.addEventListener('pointercancel', onPointerUp);
 
   dragBar.style.webkitAppRegion = 'drag';
-  document.getElementById('chrome').style.webkitAppRegion = 'no-drag';
+  document.getElementById('toolbar').style.webkitAppRegion = 'no-drag';
   document.querySelectorAll('.handle').forEach((h) => {
     h.style.webkitAppRegion = 'no-drag';
   });
